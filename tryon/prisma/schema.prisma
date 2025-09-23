@@ -1,0 +1,180 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+ 
+generator client {
+  provider = "prisma-client-js"
+}
+ 
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  height        String?
+  waist         String?
+  shoulder      String?
+  accounts      Account[]
+  sessions      Session[]
+  // Optional for WebAuthn support
+  Authenticator Authenticator[]
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Back-relations
+  userPhotos         UserPhoto[]
+  generatedImages    GeneratedImage[]
+  generationRequests GenerationRequest[]
+  subscriptions      Subscription[]
+}
+
+model UserPhoto {
+  id          Int       @id @default(autoincrement())
+  userId      String
+  photoUrl    String
+  profiletype String?
+  isPrimary   Boolean?  @default(false)
+  uploadedAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Back-relations
+  generatedImages    GeneratedImage[]
+  generationRequests GenerationRequest[]
+}
+
+model Platform {
+  id           Int      @id @default(autoincrement())
+  platformName String   @unique
+  baseUrl      String
+  logoUrl      String?
+  createdAt    DateTime @default(now())
+
+  clothingItems ClothingItem[]
+}
+
+model ClothingCategory {
+  id               Int                @id @default(autoincrement())
+  categoryType     String             @unique
+  parentCategoryId Int?
+  description      String?
+
+  parentCategory ClothingCategory? @relation("CategoryToParent", fields: [parentCategoryId], references: [id])
+  subcategories  ClothingCategory[] @relation("CategoryToParent")
+  clothingItems  ClothingItem[]
+}
+
+model ClothingItem {
+  id          Int               @id @default(autoincrement())
+  platformId  Int
+  categoryId  Int
+  productUrl  String            @unique
+  itemName    String
+  description String?
+  itemImages  Json?
+  scrapedAt   DateTime?         @default(now())
+  updatedAt   DateTime?         @updatedAt
+
+  platform Platform         @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  category ClothingCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  generatedImages GeneratedImage[]
+}
+
+model GeneratedImage {
+  id            Int           @id @default(autoincrement())
+  userId        String
+  url           String?
+  clothingItemId Int?
+  userPhotoId   Int?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clothingItem ClothingItem? @relation(fields: [clothingItemId], references: [id])
+  userPhoto    UserPhoto?    @relation(fields: [userPhotoId], references: [id])
+}
+
+model GenerationRequest {
+  requestId            Int       @id @default(autoincrement())
+  userId               String
+  userPhotoId          Int?
+  requestType          String?
+  status               String?
+  resultImageUrl       String?
+  processingMetadata   Json?
+  requestedAt          DateTime  @default(now())
+  completedAt          DateTime?
+  processingTimeSeconds Decimal? @db.Decimal(8, 2)
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userPhoto UserPhoto? @relation(fields: [userPhotoId], references: [id])
+}
+
+model Subscription {
+  subscriptionId      Int       @id @default(autoincrement())
+  userId              String
+  planType            String?
+  monthlyPrice        Decimal?  @db.Decimal(8, 2)
+  generationsLimit    Int?
+  isActive            Boolean?  @default(true)
+  startedAt           DateTime  @default(now())
+  expiresAt           DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+ 
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([provider, providerAccountId])
+}
+ 
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+ 
+  @@id([identifier, token])
+}
+ 
+// Optional for WebAuthn support
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([userId, credentialID])
+}
