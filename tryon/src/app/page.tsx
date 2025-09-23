@@ -1,8 +1,8 @@
 import Image from "next/image";
-import SignIn from "./components/sign-in";
-import SignOut from "./components/sign-out";
+import SignIn from "../components/sign-in";
+import SignOut from "../components/sign-out";
 import { auth } from "../../auth";
-import UploadBtn from "./components/upload";
+import UploadBtn from "../components/upload";
 
 export default async function Home() {
   const session = await auth()
